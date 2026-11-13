@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Warband Command — 2D 原型</title>
+  <style>
+    :root { color-scheme: dark; --ink:#ecf3ff; --muted:#9aabc5; --panel:rgba(9,14,25,.86); --blue:#2388ff; --red:#ff493f; --gold:#f3c34b; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; width:100%; height:100%; overflow:hidden; background:#071019; color:var(--ink); font:14px/1.35 "Segoe UI",system-ui,sans-serif; }
+    #game { position:fixed; inset:0; width:100%; height:100%; display:block; cursor:crosshair; }
+    .top { pointer-events:none; position:fixed; left:0; right:0; top:0; height:88px; display:flex; align-items:flex-start; justify-content:space-between; padding:14px 22px; background:linear-gradient(180deg,rgba(5,9,17,.96),rgba(5,9,17,.45),transparent); }
+    .brand { letter-spacing:.12em; font-weight:800; font-size:18px; text-transform:uppercase; text-shadow:0 2px 5px #000; }
+    .sub { color:var(--muted); font-size:11px; letter-spacing:.12em; margin-top:2px; }
+    .stats { display:flex; gap:10px; align-items:center; }
+    .card { min-width:155px; padding:8px 12px; background:var(--panel); border:1px solid rgba(255,255,255,.12); border-radius:8px; box-shadow:0 10px 28px rgba(0,0,0,.24); }
+    .label { color:var(--muted); font-size:10px; letter-spacing:.14em; }
+    .value { font-weight:800; font-size:17px; margin-top:1px; }
+    .bar { height:7px; margin-top:5px; border-radius:4px; background:#1e2838; overflow:hidden; }
+    .bar i { display:block; height:100%; width:50%; background:var(--blue); transition:width .15s; }
+    .bar.red i { background:var(--red); }
+    .keep { position:fixed; left:50%; top:62px; transform:translateX(-50%); width:min(360px,40vw); text-align:center; pointer-events:none; }
+    .keep .label { display:block; color:#f6d47a; }
+    .keepbar { position:relative; height:10px; background:#192232; border:1px solid rgba(255,255,255,.15); border-radius:5px; overflow:hidden; }
+    .keepbar i { position:absolute; top:0; bottom:0; left:50%; width:0; background:var(--blue); transition:all .2s; }
+    .keepbar i.red { background:var(--red); }
+    .bottom { position:fixed; left:20px; bottom:18px; max-width:560px; padding:11px 14px; border:1px solid rgba(255,255,255,.12); border-radius:9px; background:var(--panel); color:#d8e2f2; box-shadow:0 12px 34px rgba(0,0,0,.26); pointer-events:none; }
+    .bottom b { color:var(--gold); }
+    .mode { position:fixed; right:20px; bottom:18px; padding:10px 15px; border-radius:8px; background:var(--panel); border:1px solid rgba(255,255,255,.14); font-weight:800; letter-spacing:.12em; pointer-events:none; }
+    .mode.command { color:var(--gold); border-color:rgba(243,195,75,.45); }
+    #end { display:none; position:fixed; inset:0; place-items:center; background:rgba(0,0,0,.67); text-align:center; }
+    #end.show { display:grid; }
+    #end h1 { margin:0; font-size:clamp(30px,6vw,70px); letter-spacing:.05em; color:var(--gold); text-shadow:0 4px 20px #000; }
+    #end.lose h1 { color:#ff6259; }
+    #end p { color:#dbe8f8; font-size:16px; }
+    .reticle { position:fixed; left:50%; top:50%; width:19px; height:19px; transform:translate(-50%,-50%); border:1px solid rgba(255,255,255,.7); border-radius:50%; pointer-events:none; }
+    @media (max-width:700px) { .stats { gap:4px; } .card { min-width:88px; padding:6px 8px; } .card .label { font-size:8px; } .value { font-size:13px; } .keep { top:78px; } .bottom { font-size:11px; max-width:calc(100vw - 40px); } }
+      .integrated-nav{position:fixed;top:105px;left:20px;z-index:10;padding:10px 12px;background:#091321ed;border:1px solid #a48746;border-radius:7px;font-size:12px}
+    .integrated-nav a{color:#f3d98d;text-decoration:none}.integrated-nav small{display:block;color:#9aabc5;margin-top:5px}
+    @media(max-width:700px){.brand{font-size:12px}.sub{max-width:150px;font-size:8px}.integrated-nav{top:120px;left:10px;font-size:11px}.bottom{bottom:65px}.keep{width:60vw}}
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <nav class="integrated-nav"><a href="../">← 返回 3D 整合版</a><small>2D 原型 · 獨立戰局，切換會重新開始</small></nav>
+  <div class="top">
+    <div><div class="brand">WARBAND COMMAND</div><div class="sub">TOTAL WAR × MOUNT &amp; BLADE // WEB PROTOTYPE</div></div>
+    <div class="stats">
+      <div class="card"><div class="label">BLUE WARband</div><div class="value" id="blue">24</div><div class="bar"><i id="blueBar"></i></div></div>
+      <div class="card"><div class="label">COMMANDER</div><div class="value" id="heroText">250 / 250</div><div class="bar"><i id="heroBar"></i></div></div>
+      <div class="card"><div class="label">RED HOST</div><div class="value" id="red">30</div><div class="bar red"><i id="redBar"></i></div></div>
+    </div>
+  </div>
+  <div class="keep"><span class="label">CENTRAL KEEP</span><div class="keepbar"><i id="keepBar"></i></div></div>
+  <div class="bottom"><b id="hintMode">DIRECT:</b></div>
+  <div class="mode" id="mode">DIRECT COMBAT</div>
+  <div class="reticle" id="reticle"></div>
+  <div id="end"><div><h1 id="endTitle">VICTORY</h1><p id="endReason"></p><p>Press <b>R</b> to fight again</p></div></div>
+  <script>
+  (() => {
+    'use strict';
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const ui = { blue:document.getElementById('blue'), red:document.getElementById('red'), blueBar:document.getElementById('blueBar'), redBar:document.getElementById('redBar'), heroText:document.getElementById('heroText'), heroBar:document.getElementById('heroBar'), keepBar:document.getElementById('keepBar'), mode:document.getElementById('mode'), hint:document.getElementById('hintMode'), reticle:document.getElementById('reticle'), end:document.getElementById('end'), endTitle:document.getElementById('endTitle'), endReason:document.getElementById('endReason') };
+    const world = { w:2400, h:1600, keep:{x:0,y:0,r:245}, hero:{x:-890,y:0,r:24,hp:250,maxHp:250,angle:0,cool:0,attackFx:0}, units:[], mode:'direct', keys:new Set(), mouse:{x:0,y:0,down:false}, drag:null, selected:new Set(), capture:0, ended:false, win:false, time:0, view:{x:0,y:0,zoom:1} };
+    let W=innerWidth, H=innerHeight, dpr=Math.min(devicePixelRatio||1,2);
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+    const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+    const norm=(x,y)=>{const n=Math.hypot(x,y)||1; return {x:x/n,y:y/n};};
+    const alive=u=>u.hp>0;
+    function resize(){ W=innerWidth; H=innerHeight; dpr=Math.min(devicePixelRatio||1,2); canvas.width=W*dpr; canvas.height=H*dpr; canvas.style.width=W+'px'; canvas.style.height=H+'px'; ctx.setTransform(dpr,0,0,dpr,0,0); }
+    addEventListener('resize',resize); resize();
+    function addUnit(team,x,y,row,col){ world.units.push({team,x,y,hp:100,maxHp:100,r:13,speed:team===0?108:98,angle:team===0?0:Math.PI,attack:0,flash:0,order:null,target:null,selected:false,row,col}); }
+    function reset(){
+      world.keys.clear(); world.drag=null; world.mouse.down=false; world.units=[]; world.selected.clear(); world.capture=0; world.ended=false; world.win=false; world.time=0; world.mode='direct'; world.hero={x:-890,y:0,r:24,hp:250,maxHp:250,angle:0,cool:0,attackFx:0};
+      for(let r=0;r<4;r++) for(let c=0;c<6;c++) addUnit(0,-620-r*95,(c-2.5)*92,r,c);
+      for(let r=0;r<5;r++) for(let c=0;c<6;c++) addUnit(1,730+r*92,(c-2.5)*92,r,c);
+      ui.end.classList.remove('show','lose'); setMode('direct');
+    }
+    function setMode(m){ world.drag=null; world.mouse.down=false; world.mode=m; ui.mode.textContent=m==='command'?'COMMAND MODE':'DIRECT COMBAT'; ui.mode.classList.toggle('command',m==='command'); ui.hint.textContent=m==='command'?'COMMAND: drag select · Q all · RMB move / attack · TAB direct':'DIRECT: WASD move · mouse aim · LMB strike · SPACE jump · TAB command view'; ui.reticle.style.display=m==='command'?'none':'block'; canvas.style.cursor=m==='command'?'default':'crosshair'; }
+    function screenToWorld(sx,sy){ const z=world.mode==='command'?.5:1.04; const vx=world.mode==='command'?0:world.hero.x; const vy=world.mode==='command'?0:world.hero.y; return {x:(sx-W/2)/z+vx,y:(sy-H/2)/z+vy}; }
+    function worldToScreen(x,y){ const z=world.mode==='command'?.5:1.04; const vx=world.mode==='command'?0:world.hero.x; const vy=world.mode==='command'?0:world.hero.y; return {x:(x-vx)*z+W/2,y:(y-vy)*z+H/2}; }
+    function unitAt(p){ let hit=null, best=42; for(const u of world.units){ if(!alive(u)) continue; const d=dist(u,p); if(d<best){best=d;hit=u;} } return hit; }
+    function damage(u,n){ if(!u||!alive(u))return; u.hp-=n; u.flash=.12; if(u.hp<=0){u.hp=0; world.selected.delete(u);u.selected=false;} }
+    function heroAttack(){ if(world.hero.cool>0||world.ended)return; world.hero.cool=.42; world.hero.attackFx=.22; let best=null,bd=235; for(const u of world.units){ if(u.team===0||!alive(u))continue; const d=dist(world.hero,u); if(d<bd){bd=d;best=u;} } if(best) damage(best,46); }
+    function completeSelection(){ if(!world.drag)return; const a=world.drag.a,b=world.drag.b; const minX=Math.min(a.x,b.x),maxX=Math.max(a.x,b.x),minY=Math.min(a.y,b.y),maxY=Math.max(a.y,b.y); const click=Math.hypot(a.x-b.x,a.y-b.y)<12; world.selected.clear(); for(const u of world.units){u.selected=false;if(u.team!==0||!alive(u))continue; const s=worldToScreen(u.x,u.y); if(click?Math.hypot(s.x-b.x,s.y-b.y)<42:(s.x>=minX&&s.x<=maxX&&s.y>=minY&&s.y<=maxY)){u.selected=true;world.selected.add(u);} } world.drag=null; }
+    function issueOrder(screenPoint=world.mouse){ if(world.selected.size===0)return; const p=screenToWorld(screenPoint.x,screenPoint.y); const target=unitAt(p); const selected=[...world.selected]; if(target&&target.team===1){for(const u of selected)u.target=target,u.order=null;return;} const cols=Math.max(1,Math.ceil(Math.sqrt(selected.length))); selected.forEach((u,i)=>{const row=Math.floor(i/cols),col=i%cols;u.target=null;u.order={x:p.x+(col-(cols-1)/2)*52,y:p.y-row*52};}); }
+    function update(dt){
+      if(world.ended)return; world.time+=dt; world.hero.cool=Math.max(0,world.hero.cool-dt); world.hero.attackFx=Math.max(0,world.hero.attackFx-dt);
+      if(world.mode==='direct'){let dx=(world.keys.has('d')?1:0)-(world.keys.has('a')?1:0),dy=(world.keys.has('s')?1:0)-(world.keys.has('w')?1:0);if(dx||dy){const n=norm(dx,dy);world.hero.x+=n.x*360*dt;world.hero.y+=n.y*360*dt;} world.hero.x=clamp(world.hero.x,-world.worldHalfX(),world.worldHalfX());world.hero.y=clamp(world.hero.y,-world.worldHalfY(),world.worldHalfY()); const p=screenToWorld(world.mouse.x,world.mouse.y);world.hero.angle=Math.atan2(p.y-world.hero.y,p.x-world.hero.x); }
+      for(const u of world.units){ if(!alive(u))continue; u.attack=Math.max(0,u.attack-dt);u.flash=Math.max(0,u.flash-dt); let t=u.target&&alive(u.target)&&u.target.team!==u.team?u.target:null; if(!t){u.target=null;let best=null,br=u.team===1?470:340; for(const v of world.units){if(!alive(v)||v.team===u.team)continue;const d=dist(u,v);if(d<br){br=d;best=v;}} if(u.team===1&&world.hero.hp>0&&dist(u,world.hero)<br){best=world.hero;br=dist(u,world.hero);} t=best;}
+        let destination=t||u.order; if(destination){const dx=destination.x-u.x,dy=destination.y-u.y,d=Math.hypot(dx,dy);u.angle=Math.atan2(dy,dx);if(t&&d<48){if(u.attack<=0){u.attack=1.05+Math.random()*.25; if(t===world.hero)world.hero.hp=clamp(world.hero.hp-13,0,world.hero.maxHp);else damage(t,15);} }else if(!t||d>46){const n=norm(dx,dy);u.x+=n.x*u.speed*dt;u.y+=n.y*u.speed*dt;if(u.order&&d<20)u.order=null;} }
+      }
+      const blue=world.units.filter(u=>u.team===0&&alive(u)).length,red=world.units.filter(u=>u.team===1&&alive(u)).length; const bp=world.units.filter(u=>u.team===0&&alive(u)&&dist(u,world.keep)<world.keep.r).length+(dist(world.hero,world.keep)<world.keep.r?1:0),rp=world.units.filter(u=>u.team===1&&alive(u)&&dist(u,world.keep)<world.keep.r).length; if(bp>0&&rp===0)world.capture=clamp(world.capture+dt,-24,24);else if(rp>0&&bp===0)world.capture=clamp(world.capture-dt,-24,24); if(red===0)finish(true,'THE RED HOST IS BROKEN');else if(world.hero.hp<=0)finish(false,'YOUR COMMANDER HAS FALLEN');else if(blue===0)finish(false,'YOUR WARBAND WAS DESTROYED');else if(world.capture>=24)finish(true,'THE CENTRAL KEEP IS YOURS');else if(world.capture<=-24)finish(false,'THE ENEMY TOOK THE KEEP'); updateUI(blue,red); }
+    world.worldHalfX=()=>world.w/2-30; world.worldHalfY=()=>world.h/2-30;
+    function finish(win,reason){world.ended=true;world.win=win;ui.endTitle.textContent=win?'VICTORY':'DEFEAT';ui.endReason.textContent=reason;ui.end.classList.toggle('lose',!win);ui.end.classList.add('show');}
+    function updateUI(blue,red){ui.blue.textContent=String(blue).padStart(2,'0');ui.red.textContent=String(red).padStart(2,'0');ui.blueBar.style.width=(blue/24*100)+'%';ui.redBar.style.width=(red/30*100)+'%';ui.heroText.textContent=Math.ceil(world.hero.hp)+' / '+world.hero.maxHp;ui.heroBar.style.width=(world.hero.hp/world.hero.maxHp*100)+'%';const pct=world.capture/24;ui.keepBar.classList.toggle('red',pct<0);ui.keepBar.style.left=pct>=0?'50%':(50+pct*50)+'%';ui.keepBar.style.width=Math.abs(pct*50)+'%';}
+    function circle(x,y,r,fill,stroke,lw=1){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.lineWidth=lw;ctx.strokeStyle=stroke;ctx.stroke();}}
+    function render(){ctx.clearRect(0,0,W,H);const z=world.mode==='command'?.5:1.04;const cx=world.mode==='command'?0:world.hero.x;const cy=world.mode==='command'?0:world.hero.y;ctx.save();ctx.translate(W/2,H/2);ctx.scale(z,z);ctx.translate(-cx,-cy);ctx.fillStyle='#172b21';ctx.fillRect(-world.w/2,-world.h/2,world.w,world.h);ctx.strokeStyle='rgba(205,231,207,.08)';ctx.lineWidth=1/z;for(let x=-world.w/2;x<=world.w/2;x+=100){ctx.beginPath();ctx.moveTo(x,-world.h/2);ctx.lineTo(x,world.h/2);ctx.stroke();}for(let y=-world.h/2;y<=world.h/2;y+=100){ctx.beginPath();ctx.moveTo(-world.w/2,y);ctx.lineTo(world.w/2,y);ctx.stroke();}
+      ctx.strokeStyle='#5d6043';ctx.lineWidth=22;ctx.strokeRect(-world.w/2,-world.h/2,world.w,world.h); for(const b of [[-450,-440,250,38],[250,350,340,38],[700,-250,40,280],[-760,330,40,220]]){ctx.fillStyle='#3b3f32';ctx.fillRect(b[0],b[1],b[2],b[3]);ctx.fillStyle='rgba(255,255,255,.08)';ctx.fillRect(b[0],b[1],b[2],4);}
+      circle(world.keep.x,world.keep.y,world.keep.r,'rgba(196,157,46,.10)','#c5a347',4); circle(world.keep.x,world.keep.y,145,'rgba(67,57,30,.70)','#a7883b',2);ctx.fillStyle='#c7a94d';ctx.fillRect(-7,-115,14,115);ctx.fillStyle=world.capture>=0?'#2c8aff':'#ff4b42';ctx.beginPath();ctx.moveTo(7,-112);ctx.lineTo(78,-90);ctx.lineTo(7,-65);ctx.closePath();ctx.fill();
+      for(const u of world.units){if(!alive(u))continue; const selected=u.selected;circle(u.x,u.y,u.r,u.team===0?'#2586f5':'#f04b43',selected?'#f3c34b':'rgba(0,0,0,.45)',selected?3:2);ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.angle);ctx.fillStyle='rgba(255,255,255,.85)';ctx.beginPath();ctx.moveTo(17,0);ctx.lineTo(6,-5);ctx.lineTo(6,5);ctx.closePath();ctx.fill();ctx.restore();ctx.fillStyle='rgba(0,0,0,.75)';ctx.fillRect(u.x-17,u.y-u.r-11,34,4);ctx.fillStyle='#72ec81';ctx.fillRect(u.x-17,u.y-u.r-11,34*u.hp/u.maxHp,4);if(selected){ctx.strokeStyle='#f3c34b';ctx.setLineDash([5,4]);ctx.beginPath();ctx.arc(u.x,u.y,22,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}}
+      const h=world.hero;ctx.save();ctx.translate(h.x,h.y);ctx.rotate(h.angle);ctx.fillStyle='#f1c0a0';ctx.beginPath();ctx.arc(0,-6,11,0,Math.PI*2);ctx.fill();ctx.fillStyle='#1763c8';ctx.beginPath();ctx.moveTo(-18,18);ctx.lineTo(0,-15);ctx.lineTo(18,18);ctx.closePath();ctx.fill();ctx.fillStyle='#e2e9f2';ctx.fillRect(9,-5,42,5);if(h.attackFx>0){ctx.strokeStyle='#f7e2a3';ctx.lineWidth=7;ctx.beginPath();ctx.arc(0,0,54,-.8,.8);ctx.stroke();}ctx.restore();ctx.fillStyle='rgba(0,0,0,.8)';ctx.fillRect(h.x-30,h.y-39,60,6);ctx.fillStyle='#24d77d';ctx.fillRect(h.x-30,h.y-39,60*h.hp/h.maxHp,6);if(world.drag){ctx.restore();ctx.strokeStyle='rgba(74,173,255,.95)';ctx.fillStyle='rgba(74,173,255,.12)';const a=world.drag.a,b=world.drag.b;ctx.fillRect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(a.x-b.x),Math.abs(a.y-b.y));ctx.strokeRect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(a.x-b.x),Math.abs(a.y-b.y));return;}ctx.restore(); }
+    function frame(t){if(!frame.last)frame.last=t;const dt=Math.min(.04,(t-frame.last)/1000);frame.last=t;update(dt);render();requestAnimationFrame(frame);} 
+    addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(e.target.closest('a,button,input,textarea')||e.ctrlKey||e.metaKey||e.altKey)return;if(e.repeat&&['tab','q','r',' '].includes(k)){e.preventDefault();return;}if(k==='tab'){e.preventDefault();setMode(world.mode==='direct'?'command':'direct');return;}if(k==='q'&&world.mode==='command'){world.selected.clear();for(const u of world.units)if(u.team===0&&alive(u)){u.selected=true;world.selected.add(u);}return;}if(k==='r'){reset();return;}world.keys.add(k);if(k===' '){e.preventDefault();world.hero.y-=20;}}); addEventListener('keyup',e=>world.keys.delete(e.key.toLowerCase()));
+    canvas.addEventListener('mousemove',e=>{const rect=canvas.getBoundingClientRect();world.mouse.x=e.clientX-rect.left;world.mouse.y=e.clientY-rect.top;if(world.drag)world.drag.b={x:world.mouse.x,y:world.mouse.y};});
+    canvas.addEventListener('mousedown',e=>{const rect=canvas.getBoundingClientRect();const point={x:e.clientX-rect.left,y:e.clientY-rect.top};world.mouse.x=point.x;world.mouse.y=point.y;e.preventDefault();if(world.mode==='direct'){if(e.button===0){world.mouse.down=true;heroAttack();}}else if(e.button===0){world.drag={a:point,b:point};}else if(e.button===2){issueOrder(point);}});addEventListener('mouseup',e=>{if(world.mode==='direct'){if(e.button===0)world.mouse.down=false;}else if(e.button===0)completeSelection();});canvas.addEventListener('contextmenu',e=>e.preventDefault());
+    addEventListener('blur',()=>{world.keys.clear();world.drag=null;world.mouse.down=false;});
+    reset(); requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>
